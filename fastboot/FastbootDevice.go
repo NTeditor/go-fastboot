@@ -1,8 +1,10 @@
 package fastboot
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/gousb"
 )
@@ -24,9 +26,11 @@ var Status = struct {
 var Error = struct {
 	VarNotFound    error
 	DeviceNotFound error
+	Timeout        error
 }{
 	VarNotFound:    errors.New("variable not found"),
 	DeviceNotFound: errors.New("device not found"),
+	Timeout:        errors.New("operation timeout"),
 }
 
 type FastbootDevice struct {
@@ -151,6 +155,29 @@ func (d *FastbootDevice) GetVar(variable string) (string, error) {
 		return "", err
 	}
 	return string(resp), nil
+}
+
+func (d *FastbootDevice) Reboot() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resultChan := make(chan error, 1)
+
+	go func() {
+		err := d.Send([]byte("reboot"))
+		resultChan <- err
+	}()
+
+	select {
+	case err := <-resultChan:
+		if err != nil {
+			return err
+		}
+	case <-ctx.Done():
+		d.Close()
+		return Error.Timeout
+	}
+	return nil
 }
 
 func (d *FastbootDevice) BootImage(data []byte) error {
