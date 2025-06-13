@@ -1,4 +1,4 @@
-module github.com/timoxa0/gofastboot
+module github.com/nteditor/go-fastboot
 
 go 1.22.4
 
