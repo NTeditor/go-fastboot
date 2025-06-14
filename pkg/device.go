@@ -2,36 +2,11 @@ package fastboot
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
 	"github.com/google/gousb"
 )
-
-type FastbootResponseStatus string
-
-var Status = struct {
-	OKAY FastbootResponseStatus
-	FAIL FastbootResponseStatus
-	DATA FastbootResponseStatus
-	INFO FastbootResponseStatus
-}{
-	OKAY: "OKAY",
-	FAIL: "FAIL",
-	DATA: "DATA",
-	INFO: "INFO",
-}
-
-var Error = struct {
-	VarNotFound    error
-	DeviceNotFound error
-	Timeout        error
-}{
-	VarNotFound:    errors.New("variable not found"),
-	DeviceNotFound: errors.New("device not found"),
-	Timeout:        errors.New("operation timeout"),
-}
 
 type FastbootDevice struct {
 	Device  *gousb.Device
@@ -39,70 +14,6 @@ type FastbootDevice struct {
 	In      *gousb.InEndpoint
 	Out     *gousb.OutEndpoint
 	Unclaim func()
-}
-
-func FindDevices() ([]*FastbootDevice, error) {
-	ctx := gousb.NewContext()
-	var fastbootDevices []*FastbootDevice
-	devs, err := ctx.OpenDevices(func(desc *gousb.DeviceDesc) bool {
-		for _, cfg := range desc.Configs {
-			for _, ifc := range cfg.Interfaces {
-				for _, alt := range ifc.AltSettings {
-					return alt.Protocol == 0x03 && alt.Class == 0xff && alt.SubClass == 0x42
-				}
-			}
-		}
-		return true
-	})
-
-	if err != nil && len(devs) == 0 {
-		return nil, err
-	}
-
-	for _, dev := range devs {
-		intf, done, err := dev.DefaultInterface()
-		if err != nil {
-			continue
-		}
-		inEndpoint, err := intf.InEndpoint(0x81)
-		if err != nil {
-			continue
-		}
-		outEndpoint, err := intf.OutEndpoint(0x01)
-		if err != nil {
-			continue
-		}
-		fastbootDevices = append(fastbootDevices, &FastbootDevice{
-			Device:  dev,
-			Context: ctx,
-			In:      inEndpoint,
-			Out:     outEndpoint,
-			Unclaim: done,
-		})
-	}
-
-	return fastbootDevices, nil
-}
-
-func FindDevice(serial string) (*FastbootDevice, error) {
-	devs, err := FindDevices()
-
-	if err != nil {
-		return &FastbootDevice{}, err
-	}
-
-	for _, dev := range devs {
-		s, e := dev.Device.SerialNumber()
-		if e != nil {
-			continue
-		}
-		if serial != s {
-			continue
-		}
-		return dev, nil
-	}
-
-	return &FastbootDevice{}, Error.DeviceNotFound
 }
 
 func (d *FastbootDevice) Close() {
@@ -157,7 +68,7 @@ func (d *FastbootDevice) GetVar(variable string) (string, error) {
 	return string(resp), nil
 }
 
-func (d *FastbootDevice) Reboot() error {
+func (d *FastbootDevice) Reboot(to string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -180,22 +91,9 @@ func (d *FastbootDevice) Reboot() error {
 	return nil
 }
 
-func (d *FastbootDevice) BootImage(data []byte) error {
-	err := d.Download(data)
+func (d *FastbootDevice) Erase(partition string) error {
+	err := d.Send([]byte(fmt.Sprintf("erase:%s", partition)))
 	if err != nil {
-		return err
-	}
-
-	err = d.Send([]byte("boot"))
-	if err != nil {
-		return err
-	}
-
-	status, data, err := d.Recv()
-	switch {
-	case status != Status.OKAY:
-		return fmt.Errorf("failed to boot image: %s %s", status, data)
-	case err != nil:
 		return err
 	}
 	return nil
