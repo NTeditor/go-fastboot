@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/google/gousb"
+	"github.com/nteditor/go-fastboot/internal/protocol"
 )
 
 type fastboot struct {
@@ -47,10 +48,27 @@ func (f *fastboot) ListDevices() ([]*device, error) {
 		if err != nil {
 			continue
 		}
-		protocol := newProtocol(inEndpoint, outEndpoint, cleanup)
+		protocol := protocol.NewProtocol(inEndpoint, outEndpoint, cleanup)
 		finalDevices = append(finalDevices, newDevice(dev, protocol))
 	}
 	return finalDevices, nil
+}
+
+func (f *fastboot) FinalDeviceBySerial(serial string) (*device, error) {
+	devs, err := f.ListDevices()
+	if err != nil {
+		return nil, err
+	}
+	for _, dev := range devs {
+		devSerial, err := dev.Device.SerialNumber()
+		if err != nil {
+			return nil, err
+		}
+		if devSerial == serial {
+			return dev, nil
+		}
+	}
+	return nil, nil
 }
 
 func NewHost() *fastboot {

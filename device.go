@@ -5,14 +5,16 @@ import (
 	"time"
 
 	"github.com/google/gousb"
+	"github.com/nteditor/go-fastboot/fastbootErrors"
+	"github.com/nteditor/go-fastboot/internal/protocol"
 )
 
 type device struct {
 	Device   *gousb.Device
-	protocol *protocol
+	protocol *protocol.Protocol
 }
 
-func newDevice(dev *gousb.Device, protocol *protocol) *device {
+func newDevice(dev *gousb.Device, protocol *protocol.Protocol) *device {
 	return &device{
 		Device:   dev,
 		protocol: protocol,
@@ -37,7 +39,7 @@ func (d *device) Reboot() error {
 		d.Close()
 		return nil
 	case <-ctx.Done():
-		return FastbootErrors.Timeout
+		return fastbootErrors.Timeout
 	}
 }
 
