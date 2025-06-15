@@ -59,3 +59,7 @@ func NewHost() *fastboot {
 		ctx: ctx,
 	}
 }
+
+func (f *fastboot) Close() {
+	f.ctx.Close()
+}
