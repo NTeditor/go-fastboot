@@ -2,7 +2,7 @@ package fastboot
 
 import (
 	"context"
-	"time"
+	"fmt"
 
 	"github.com/google/gousb"
 	"github.com/nteditor/go-fastboot/fastbootErrors"
@@ -21,9 +21,7 @@ func newDevice(dev *gousb.Device, protocol *protocol.Protocol) *device {
 	}
 }
 
-func (d *device) Reboot() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
+func (d *device) Reboot(ctx context.Context) error {
 
 	resultChan := make(chan error, 1)
 	go func() {
@@ -37,6 +35,48 @@ func (d *device) Reboot() error {
 			return err
 		}
 		d.Close()
+		return nil
+	case <-ctx.Done():
+		return fastbootErrors.Timeout
+	}
+}
+
+func (d *device) Flash(ctx context.Context, partition string, image []byte, infoHandler func([]byte)) error {
+
+	resultChan := make(chan error, 1)
+	go func() {
+		if err := d.protocol.Download(ctx, image); err != nil {
+			resultChan <- err
+			return
+		}
+		if err := d.protocol.Send(ctx, []byte(fmt.Sprintf("flash:%s", partition))); err != nil {
+			resultChan <- err
+			return
+		}
+		for {
+			if status, data, err := d.protocol.Read(ctx); err != nil {
+				resultChan <- err
+				return
+			} else {
+				switch status {
+				case protocol.Status.OKAY:
+					resultChan <- nil
+					return
+				case protocol.Status.FAIL:
+					resultChan <- fmt.Errorf("%s", data)
+					return
+				default:
+					infoHandler(data)
+				}
+			}
+		}
+	}()
+
+	select {
+	case err := <-resultChan:
+		if err != nil {
+			return err
+		}
 		return nil
 	case <-ctx.Done():
 		return fastbootErrors.Timeout
