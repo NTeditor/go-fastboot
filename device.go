@@ -1,21 +1,33 @@
 package fastboot
 
-import "github.com/google/gousb"
+import (
+	"context"
+	"time"
+
+	"github.com/google/gousb"
+)
 
 type device struct {
-	dev      *gousb.Device
+	Device   *gousb.Device
 	protocol *protocol
 }
 
 func newDevice(dev *gousb.Device, protocol *protocol) *device {
 	return &device{
-		dev:      dev,
+		Device:   dev,
 		protocol: protocol,
 	}
 }
 
 func (d *device) Reboot() error {
-	return d.protocol.Send([]byte("reboot"))
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	if err := d.protocol.Send(ctx, []byte("reboot")); err == nil {
+		d.Close()
+		return nil
+	} else {
+		return err
+	}
 }
 
 func (d *device) Close() {

@@ -1,21 +1,32 @@
 package fastboot
 
 import (
+	"context"
+
 	"github.com/google/gousb"
 )
 
-type FastbootStatus string
+type FastbootStatus int
 
-var Status = struct {
-	OKAY FastbootStatus
-	FAIL FastbootStatus
-	DATA FastbootStatus
-	INFO FastbootStatus
-}{
-	OKAY: "OKAY",
-	FAIL: "FAIL",
-	DATA: "DATA",
-	INFO: "INFO",
+const (
+	OKAY FastbootStatus = iota
+	FAIL
+	DATA
+	INFO
+)
+
+func status(data []byte) FastbootStatus {
+	switch string(data[:4]) {
+	case "OKAY":
+		return OKAY
+	case "INFO":
+		return INFO
+	case "DATA":
+		return DATA
+	default:
+		return FAIL
+	}
+
 }
 
 type protocol struct {
@@ -37,28 +48,31 @@ func newProtocol(
 	}
 }
 
-func (p *protocol) Send(data []byte) error {
-	_, err := p.outEndpoint.Write(data)
+func (p *protocol) Send(ctx context.Context, data []byte) error {
+	if p.IsClosed {
+		return FastbootErrors.deviceClose
+	}
+	_, err := p.outEndpoint.WriteContext(ctx, data)
 	return err
 }
 
-func (p *protocol) Read() (string, []byte, error) {
+func (p *protocol) Read(ctx context.Context) (FastbootStatus, []byte, error) {
+	if p.IsClosed {
+		return FAIL, nil, FastbootErrors.deviceClose
+	}
 	var data []byte
 	buf := make([]byte, p.inEndpoint.Desc.MaxPacketSize)
-	n, err := p.inEndpoint.Read(buf)
+	n, err := p.inEndpoint.ReadContext(ctx, buf)
 	if err != nil {
-		return "FAIL", []byte{}, err
+		return FAIL, []byte{}, err
 	}
 	data = append(data, buf[:n]...)
-	status := string(data[:4])
-	return status, data[4:], nil
+	return status(data[:4]), data[4:], nil
 }
 
 func (p *protocol) Close() {
 	if !p.IsClosed {
 		p.IsClosed = true
 		p.cleanup()
-		p.inEndpoint = nil
-		p.outEndpoint = nil
 	}
 }
