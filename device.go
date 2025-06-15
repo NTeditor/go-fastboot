@@ -22,11 +22,22 @@ func newDevice(dev *gousb.Device, protocol *protocol) *device {
 func (d *device) Reboot() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	if err := d.protocol.Send(ctx, []byte("reboot")); err == nil {
+
+	resultChan := make(chan error, 1)
+	go func() {
+		err := d.protocol.Send(ctx, []byte("reboot"))
+		resultChan <- err
+	}()
+
+	select {
+	case err := <-resultChan:
+		if err != nil {
+			return err
+		}
 		d.Close()
 		return nil
-	} else {
-		return err
+	case <-ctx.Done():
+		return FastbootErrors.Timeout
 	}
 }
 
