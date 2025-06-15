@@ -3,9 +3,9 @@ package fastboot
 import "errors"
 
 var FastbootErrors = struct {
-	deviceClose error
-	timeout     error
+	DeviceClose error
+	Timeout     error
 }{
-	deviceClose: errors.New("connection is closed"),
-	timeout:     errors.New("send operation timed out"),
+	DeviceClose: errors.New("connection is closed"),
+	Timeout:     errors.New("send operation timed out"),
 }

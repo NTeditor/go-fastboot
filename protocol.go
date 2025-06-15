@@ -50,7 +50,7 @@ func newProtocol(
 
 func (p *protocol) Send(ctx context.Context, data []byte) error {
 	if p.IsClosed {
-		return FastbootErrors.deviceClose
+		return FastbootErrors.DeviceClose
 	}
 	_, err := p.outEndpoint.WriteContext(ctx, data)
 	return err
@@ -58,7 +58,7 @@ func (p *protocol) Send(ctx context.Context, data []byte) error {
 
 func (p *protocol) Read(ctx context.Context) (FastbootStatus, []byte, error) {
 	if p.IsClosed {
-		return FAIL, nil, FastbootErrors.deviceClose
+		return FAIL, nil, FastbootErrors.DeviceClose
 	}
 	var data []byte
 	buf := make([]byte, p.inEndpoint.Desc.MaxPacketSize)
