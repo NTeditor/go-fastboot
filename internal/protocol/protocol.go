@@ -31,22 +31,52 @@ func (p *Protocol) Send(ctx context.Context, data []byte) error {
 	if p.IsClosed {
 		return fastbootErrors.DeviceClose
 	}
-	_, err := p.outEndpoint.WriteContext(ctx, data)
-	return err
+
+	resultChan := make(chan error, 1)
+
+	go func() {
+		_, err := p.outEndpoint.WriteContext(ctx, data)
+		resultChan <- err
+	}()
+
+	select {
+	case err := <-resultChan:
+		return err
+	case <-ctx.Done():
+		return fastbootErrors.Timeout
+	}
 }
 
 func (p *Protocol) Read(ctx context.Context) (StatusType, []byte, error) {
 	if p.IsClosed {
 		return Status.FAIL, nil, fastbootErrors.DeviceClose
 	}
-	var data []byte
-	buf := make([]byte, p.inEndpoint.Desc.MaxPacketSize)
-	n, err := p.inEndpoint.ReadContext(ctx, buf)
-	if err != nil {
-		return Status.FAIL, nil, err
+
+	type resultStruct struct {
+		status StatusType
+		data   []byte
+		err    error
 	}
-	data = append(data, buf[:n]...)
-	return RawToStatus(data[:4]), data[4:], nil
+
+	resultChan := make(chan resultStruct, 1)
+
+	go func() {
+		var data []byte
+		buf := make([]byte, p.inEndpoint.Desc.MaxPacketSize)
+		n, err := p.inEndpoint.ReadContext(ctx, buf)
+		if err != nil {
+			resultChan <- resultStruct{status: Status.FAIL, data: nil, err: err}
+		}
+		data = append(data, buf[:n]...)
+		resultChan <- resultStruct{status: RawToStatus(data[:4]), data: data[4:], err: nil}
+	}()
+
+	select {
+	case result := <-resultChan:
+		return result.status, result.data, result.err
+	case <-ctx.Done():
+		return Status.FAIL, nil, fastbootErrors.Timeout
+	}
 }
 
 func (p *Protocol) Close() {
@@ -61,7 +91,7 @@ func (p *Protocol) Download(ctx context.Context, data []byte) error {
 		return fastbootErrors.DeviceClose
 	}
 
-	const chunkSize = 0x40040
+	const chunk_size = 0x40040
 	dataSize := len(data)
 
 	err := p.Send(ctx, []byte(fmt.Sprintf("download:%08x", dataSize)))
@@ -72,22 +102,22 @@ func (p *Protocol) Download(ctx context.Context, data []byte) error {
 	status, _, err := p.Read(ctx)
 	switch {
 	case status != Status.DATA:
-		return fmt.Errorf("failed to start data phase: %s", status)
+		return fastbootErrors.FailedDownload
 	case err != nil:
 		return err
 	}
 
-	for i := 0; i < dataSize; i += chunkSize {
-		end := min(i+chunkSize, dataSize)
+	for i := 0; i < dataSize; i += chunk_size {
+		end := min(i+chunk_size, dataSize)
 		err := p.Send(ctx, data[i:end])
 		if err != nil {
 			return err
 		}
 	}
-	status, resultData, err := p.Read(ctx)
+	status, _, err = p.Read(ctx)
 	switch {
 	case status != Status.OKAY:
-		return fmt.Errorf("failed to finish data phase, status: %s, data: %s", status, resultData)
+		return fastbootErrors.FailedDownload
 	case err != nil:
 		return err
 	}
