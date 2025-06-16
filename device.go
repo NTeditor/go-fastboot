@@ -22,64 +22,34 @@ func newDevice(dev *gousb.Device, protocol *protocol.Protocol) *device {
 }
 
 func (d *device) Reboot(ctx context.Context) error {
-
-	resultChan := make(chan error, 1)
-	go func() {
-		err := d.protocol.Send(ctx, []byte("reboot"))
-		resultChan <- err
-	}()
-
-	select {
-	case err := <-resultChan:
-		if err != nil {
-			return err
-		}
-		d.Close()
-		return nil
-	case <-ctx.Done():
-		return fastbootErrors.Timeout
+	err := d.protocol.Send(ctx, []byte("reboot"))
+	if err != nil {
+		return err
 	}
+	d.Close()
+	return nil
 }
 
 func (d *device) Flash(ctx context.Context, partition string, image []byte, infoHandler func([]byte)) error {
-
-	resultChan := make(chan error, 1)
-	go func() {
-		if err := d.protocol.Download(ctx, image); err != nil {
-			resultChan <- err
-			return
-		}
-		if err := d.protocol.Send(ctx, []byte(fmt.Sprintf("flash:%s", partition))); err != nil {
-			resultChan <- err
-			return
-		}
-		for {
-			if status, data, err := d.protocol.Read(ctx); err != nil {
-				resultChan <- err
-				return
-			} else {
-				switch status {
-				case protocol.Status.OKAY:
-					resultChan <- nil
-					return
-				case protocol.Status.FAIL:
-					resultChan <- fmt.Errorf("%s", data)
-					return
-				default:
-					infoHandler(data)
-				}
+	if err := d.protocol.Download(ctx, image); err != nil {
+		return err
+	}
+	if err := d.protocol.Send(ctx, []byte(fmt.Sprintf("flash:%s", partition))); err != nil {
+		return err
+	}
+	for {
+		if status, data, err := d.protocol.Read(ctx); err != nil {
+			return err
+		} else {
+			switch status {
+			case protocol.Status.OKAY:
+				return nil
+			case protocol.Status.FAIL:
+				return fastbootErrors.FailedFlash
+			default:
+				infoHandler(data)
 			}
 		}
-	}()
-
-	select {
-	case err := <-resultChan:
-		if err != nil {
-			return err
-		}
-		return nil
-	case <-ctx.Done():
-		return fastbootErrors.Timeout
 	}
 }
 
