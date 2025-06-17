@@ -53,6 +53,30 @@ func (d *device) Flash(ctx context.Context, partition string, image []byte, info
 	}
 }
 
+func (d *device) GetVarAll(ctx context.Context) ([]string, error) {
+	if err := d.protocol.Send(ctx, []byte("getvar:all")); err != nil {
+		return nil, err
+	}
+
+	vars := []string{}
+	for {
+		status, data, err := d.protocol.Read(ctx)
+		if err != nil {
+			return nil, err
+		}
+		switch status {
+		case protocol.Status.OKAY:
+			return vars, nil
+		case protocol.Status.DATA, protocol.Status.INFO:
+			vars = append(vars, string(data))
+		case protocol.Status.FAIL:
+			return nil, fastbootErrors.FailedGetVariable
+		default:
+			continue
+		}
+	}
+}
+
 func (d *device) Close() {
 	d.protocol.Close()
 }
