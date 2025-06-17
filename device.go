@@ -77,6 +77,31 @@ func (d *device) GetVarAll(ctx context.Context) ([]string, error) {
 	}
 }
 
+func (d *device) GetVar(ctx context.Context, variable string) (string, error) {
+	if variable == "all" {
+		return "", fastbootErrors.UseGetVarAll
+	}
+
+	if err := d.protocol.Send(ctx, []byte(fmt.Sprintf("getvar:%s", variable))); err != nil {
+		return "", err
+	}
+
+	for {
+		status, data, err := d.protocol.Read(ctx)
+		if err != nil {
+			return "", err
+		}
+		switch status {
+		case protocol.Status.OKAY:
+			return string(data), nil
+		case protocol.Status.FAIL:
+			return "", fastbootErrors.FailedGetVariable
+		default:
+			continue
+		}
+	}
+}
+
 func (d *device) Close() {
 	d.protocol.Close()
 }

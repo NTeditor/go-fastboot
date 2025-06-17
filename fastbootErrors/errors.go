@@ -8,4 +8,5 @@ var (
 	FailedDownload    = errors.New("failed to download file")
 	FailedFlash       = errors.New("failed to flash partition")
 	FailedGetVariable = errors.New("failed to get variable")
+	UseGetVarAll      = errors.New("use GetVarAll instead")
 )
