@@ -99,12 +99,14 @@ func (p *Protocol) Download(ctx context.Context, data []byte) error {
 		return err
 	}
 
-	status, _, err := p.Read(ctx)
+	status, statusData, err := p.Read(ctx)
 	switch {
-	case status != Status.DATA:
-		return fastbootErrors.ErrDownload
 	case err != nil:
 		return err
+	case status == Status.FAIL:
+		return &fastbootErrors.ErrStatusFail{Data: statusData}
+	case status != Status.DATA:
+		return fastbootErrors.ErrDownload
 	}
 
 	for i := 0; i < dataSize; i += chunk_size {
@@ -114,12 +116,14 @@ func (p *Protocol) Download(ctx context.Context, data []byte) error {
 			return err
 		}
 	}
-	status, _, err = p.Read(ctx)
+	status, statusData, err = p.Read(ctx)
 	switch {
-	case status != Status.OKAY:
-		return fastbootErrors.ErrDownload
 	case err != nil:
 		return err
+	case status == Status.FAIL:
+		return &fastbootErrors.ErrStatusFail{Data: statusData}
+	case status != Status.OKAY:
+		return fastbootErrors.ErrDownload
 	}
 	return nil
 }
