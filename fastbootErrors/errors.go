@@ -1,12 +1,23 @@
 package fastbootErrors
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 var (
-	DeviceClose       = errors.New("connection is closed")
-	Timeout           = errors.New("send operation timed out")
-	FailedDownload    = errors.New("failed to download file")
-	FailedFlash       = errors.New("failed to flash partition")
-	FailedGetVariable = errors.New("failed to get variable")
-	UseGetVarAll      = errors.New("use GetVarAll instead")
+	ErrDeviceClose  = errors.New("connection is closed")
+	ErrTimeout      = errors.New("send operation timed out")
+	ErrDownload     = errors.New("failed to download file")
+	ErrFlash        = errors.New("failed to flash partition")
+	ErrGetVariable  = errors.New("failed to get variable")
+	ErrUseGetVarAll = errors.New("use GetVarAll instead")
 )
+
+type ErrStatusFail struct {
+	Data []byte
+}
+
+func (e *ErrStatusFail) Error() string {
+	return fmt.Sprintf("fastboot status: \"Fail\"\nfastboot output: %s", e.Data)
+}

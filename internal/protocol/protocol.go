@@ -29,7 +29,7 @@ func NewProtocol(
 
 func (p *Protocol) Send(ctx context.Context, data []byte) error {
 	if p.IsClosed {
-		return fastbootErrors.DeviceClose
+		return fastbootErrors.ErrDeviceClose
 	}
 
 	resultChan := make(chan error, 1)
@@ -43,13 +43,13 @@ func (p *Protocol) Send(ctx context.Context, data []byte) error {
 	case err := <-resultChan:
 		return err
 	case <-ctx.Done():
-		return fastbootErrors.Timeout
+		return fastbootErrors.ErrTimeout
 	}
 }
 
 func (p *Protocol) Read(ctx context.Context) (StatusType, []byte, error) {
 	if p.IsClosed {
-		return Status.FAIL, nil, fastbootErrors.DeviceClose
+		return Status.FAIL, nil, fastbootErrors.ErrDeviceClose
 	}
 
 	type resultStruct struct {
@@ -75,7 +75,7 @@ func (p *Protocol) Read(ctx context.Context) (StatusType, []byte, error) {
 	case result := <-resultChan:
 		return result.status, result.data, result.err
 	case <-ctx.Done():
-		return Status.FAIL, nil, fastbootErrors.Timeout
+		return Status.FAIL, nil, fastbootErrors.ErrTimeout
 	}
 }
 
@@ -88,7 +88,7 @@ func (p *Protocol) Close() {
 
 func (p *Protocol) Download(ctx context.Context, data []byte) error {
 	if p.IsClosed {
-		return fastbootErrors.DeviceClose
+		return fastbootErrors.ErrDeviceClose
 	}
 
 	const chunk_size = 0x40040
@@ -102,7 +102,7 @@ func (p *Protocol) Download(ctx context.Context, data []byte) error {
 	status, _, err := p.Read(ctx)
 	switch {
 	case status != Status.DATA:
-		return fastbootErrors.FailedDownload
+		return fastbootErrors.ErrDownload
 	case err != nil:
 		return err
 	}
@@ -117,7 +117,7 @@ func (p *Protocol) Download(ctx context.Context, data []byte) error {
 	status, _, err = p.Read(ctx)
 	switch {
 	case status != Status.OKAY:
-		return fastbootErrors.FailedDownload
+		return fastbootErrors.ErrDownload
 	case err != nil:
 		return err
 	}
