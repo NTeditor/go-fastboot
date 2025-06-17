@@ -79,11 +79,8 @@ func (p *Protocol) Read(ctx context.Context) (StatusType, []byte, error) {
 	}
 }
 
-func (p *Protocol) Close() {
-	if !p.IsClosed {
-		p.IsClosed = true
-		p.cleanup()
-	}
+func (p *Protocol) Cleanup() {
+	p.cleanup()
 }
 
 func (p *Protocol) Download(ctx context.Context, data []byte) error {

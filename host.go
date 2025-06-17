@@ -38,14 +38,19 @@ func (f *fastboot) ListDevices() ([]*device, error) {
 	for _, dev := range devs {
 		intf, cleanup, err := dev.DefaultInterface()
 		if err != nil {
+			dev.Close()
 			continue
 		}
 		inEndpoint, err := intf.InEndpoint(0x81)
 		if err != nil {
+			cleanup()
+			dev.Close()
 			continue
 		}
 		outEndpoint, err := intf.OutEndpoint(0x01)
 		if err != nil {
+			cleanup()
+			dev.Close()
 			continue
 		}
 		protocol := protocol.NewProtocol(inEndpoint, outEndpoint, cleanup)
@@ -54,7 +59,7 @@ func (f *fastboot) ListDevices() ([]*device, error) {
 	return finalDevices, nil
 }
 
-func (f *fastboot) FinalDeviceBySerial(serial string) (*device, error) {
+func (f *fastboot) FindDeviceBySerial(serial string) (*device, error) {
 	devs, err := f.ListDevices()
 	if err != nil {
 		return nil, err
@@ -66,6 +71,8 @@ func (f *fastboot) FinalDeviceBySerial(serial string) (*device, error) {
 		}
 		if devSerial == serial {
 			return dev, nil
+		} else {
+			dev.Close()
 		}
 	}
 	return nil, nil

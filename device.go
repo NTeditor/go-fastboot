@@ -103,5 +103,9 @@ func (d *device) GetVar(ctx context.Context, variable string) (string, error) {
 }
 
 func (d *device) Close() {
-	d.protocol.Close()
+	if !d.protocol.IsClosed {
+		d.protocol.IsClosed = true
+		d.protocol.Cleanup()
+		d.Device.Close()
+	}
 }
