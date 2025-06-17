@@ -71,11 +71,10 @@ func (f *fastboot) FinalDeviceBySerial(serial string) (*device, error) {
 	return nil, nil
 }
 
-func NewHost() *fastboot {
+func NewHost() (*fastboot, func()) {
 	ctx := gousb.NewContext()
-	return &fastboot{
-		ctx: ctx,
-	}
+	host := &fastboot{ctx: ctx}
+	return host, host.Close
 }
 
 func (f *fastboot) Close() {

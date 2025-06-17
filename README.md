@@ -1,4 +1,4 @@
-## Exemple
+## Example
 
 ```go
 package main
@@ -14,8 +14,8 @@ import (
 )
 
 func main() {
-	host := fastboot.NewHost()
-	defer host.Close()
+	host, closeHost := fastboot.NewHost()
+	defer closeHost()
 	devs, err := host.ListDevices()
 	if err != nil {
 		fmt.Println("Error listing devices:", err)
