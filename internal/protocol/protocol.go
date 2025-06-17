@@ -83,13 +83,13 @@ func (p *Protocol) Cleanup() {
 	p.cleanup()
 }
 
-func (p *Protocol) Download(ctx context.Context, data []byte) error {
+func (p *Protocol) Download(ctx context.Context, image []byte) error {
 	if p.IsClosed {
 		return fastbootErrors.ErrDeviceClose
 	}
 
 	const chunk_size = 0x40040
-	dataSize := len(data)
+	dataSize := len(image)
 
 	err := p.Send(ctx, []byte(fmt.Sprintf("download:%08x", dataSize)))
 	if err != nil {
@@ -106,7 +106,7 @@ func (p *Protocol) Download(ctx context.Context, data []byte) error {
 
 	for i := 0; i < dataSize; i += chunk_size {
 		end := min(i+chunk_size, dataSize)
-		err := p.Send(ctx, data[i:end])
+		err := p.Send(ctx, image[i:end])
 		if err != nil {
 			return err
 		}

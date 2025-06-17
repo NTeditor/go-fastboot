@@ -67,6 +67,7 @@ func (f *fastboot) FindDeviceBySerial(serial string) (*device, error) {
 	for _, dev := range devs {
 		devSerial, err := dev.Device.SerialNumber()
 		if err != nil {
+			dev.Close()
 			return nil, err
 		}
 		if devSerial == serial {
@@ -76,6 +77,23 @@ func (f *fastboot) FindDeviceBySerial(serial string) (*device, error) {
 		}
 	}
 	return nil, nil
+}
+
+func (f *fastboot) ListSerials() ([]string, error) {
+	devs, err := f.ListDevices()
+	if err != nil {
+		return nil, err
+	}
+	var serials []string
+	for _, dev := range devs {
+		devSerial, err := dev.Device.SerialNumber()
+		if err != nil {
+			dev.Close()
+			return nil, err
+		}
+		serials = append(serials, devSerial)
+	}
+	return serials, nil
 }
 
 func NewHost() (*fastboot, func()) {

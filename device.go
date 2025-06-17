@@ -58,7 +58,7 @@ func (d *device) GetVarAll(ctx context.Context) ([]string, error) {
 		return nil, err
 	}
 
-	vars := []string{}
+	var vars []string
 	for {
 		status, data, err := d.protocol.Read(ctx)
 		if err != nil {
@@ -70,7 +70,7 @@ func (d *device) GetVarAll(ctx context.Context) ([]string, error) {
 		case protocol.Status.DATA, protocol.Status.INFO:
 			vars = append(vars, string(data))
 		case protocol.Status.FAIL:
-			return nil, &fastbootErrors.ErrStatusFail{Data: data}
+			return vars, &fastbootErrors.ErrStatusFail{Data: data}
 		default:
 			continue
 		}
