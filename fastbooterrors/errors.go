@@ -1,4 +1,4 @@
-package fastbootErrors
+package fastbooterrors
 
 import (
 	"errors"
@@ -8,7 +8,6 @@ import (
 var (
 	ErrDeviceClose  = errors.New("connection is closed")
 	ErrTimeout      = errors.New("send operation timed out")
-	ErrGetVariable  = errors.New("failed to get variable")
 	ErrUseGetVarAll = errors.New("use GetVarAll instead")
 )
 

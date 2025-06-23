@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/google/gousb"
-	"github.com/nteditor/go-fastboot/fastbootErrors"
+	"github.com/nteditor/go-fastboot/fastbooterrors"
 	"github.com/nteditor/go-fastboot/internal/protocol"
 )
 
@@ -45,7 +45,7 @@ func (d *device) Flash(ctx context.Context, partition string, image []byte, info
 			case protocol.Status.OKAY:
 				return nil
 			case protocol.Status.FAIL:
-				return &fastbootErrors.ErrStatusFail{Data: data}
+				return &fastbooterrors.ErrStatusFail{Data: data}
 			default:
 				infoHandler(data)
 			}
@@ -70,7 +70,7 @@ func (d *device) GetVarAll(ctx context.Context) ([]string, error) {
 		case protocol.Status.DATA, protocol.Status.INFO:
 			vars = append(vars, string(data))
 		case protocol.Status.FAIL:
-			return vars, &fastbootErrors.ErrStatusFail{Data: data}
+			return vars, &fastbooterrors.ErrStatusFail{Data: data}
 		default:
 			continue
 		}
@@ -79,7 +79,7 @@ func (d *device) GetVarAll(ctx context.Context) ([]string, error) {
 
 func (d *device) GetVar(ctx context.Context, variable string) (string, error) {
 	if variable == "all" {
-		return "", fastbootErrors.ErrUseGetVarAll
+		return "", fastbooterrors.ErrUseGetVarAll
 	}
 
 	if err := d.protocol.Send(ctx, []byte(fmt.Sprintf("getvar:%s", variable))); err != nil {
@@ -95,7 +95,7 @@ func (d *device) GetVar(ctx context.Context, variable string) (string, error) {
 		case protocol.Status.OKAY:
 			return string(data), nil
 		case protocol.Status.FAIL:
-			return "", &fastbootErrors.ErrStatusFail{Data: data}
+			return "", &fastbooterrors.ErrStatusFail{Data: data}
 		default:
 			continue
 		}
