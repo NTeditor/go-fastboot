@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/google/gousb"
-	"github.com/nteditor/go-fastboot/fastbootErrors"
+	"github.com/nteditor/go-fastboot/fastbooterrors"
 )
 
 type Protocol struct {
@@ -29,7 +29,7 @@ func NewProtocol(
 
 func (p *Protocol) Send(ctx context.Context, data []byte) error {
 	if p.IsClosed {
-		return fastbootErrors.ErrDeviceClose
+		return fastbooterrors.ErrDeviceClose
 	}
 
 	resultChan := make(chan error, 1)
@@ -43,13 +43,13 @@ func (p *Protocol) Send(ctx context.Context, data []byte) error {
 	case err := <-resultChan:
 		return err
 	case <-ctx.Done():
-		return fastbootErrors.ErrTimeout
+		return fastbooterrors.ErrTimeout
 	}
 }
 
 func (p *Protocol) Read(ctx context.Context) (StatusType, []byte, error) {
 	if p.IsClosed {
-		return Status.FAIL, nil, fastbootErrors.ErrDeviceClose
+		return Status.FAIL, nil, fastbooterrors.ErrDeviceClose
 	}
 
 	type resultStruct struct {
@@ -75,7 +75,7 @@ func (p *Protocol) Read(ctx context.Context) (StatusType, []byte, error) {
 	case result := <-resultChan:
 		return result.status, result.data, result.err
 	case <-ctx.Done():
-		return Status.FAIL, nil, fastbootErrors.ErrTimeout
+		return Status.FAIL, nil, fastbooterrors.ErrTimeout
 	}
 }
 
@@ -85,7 +85,7 @@ func (p *Protocol) Cleanup() {
 
 func (p *Protocol) Download(ctx context.Context, image []byte) error {
 	if p.IsClosed {
-		return fastbootErrors.ErrDeviceClose
+		return fastbooterrors.ErrDeviceClose
 	}
 
 	const chunk_size = 0x40040
@@ -101,7 +101,7 @@ func (p *Protocol) Download(ctx context.Context, image []byte) error {
 	case err != nil:
 		return err
 	case status == Status.FAIL:
-		return &fastbootErrors.ErrStatusFail{Data: statusData}
+		return &fastbooterrors.ErrStatusFail{Data: statusData}
 	}
 
 	for i := 0; i < dataSize; i += chunk_size {
@@ -116,7 +116,7 @@ func (p *Protocol) Download(ctx context.Context, image []byte) error {
 	case err != nil:
 		return err
 	case status == Status.FAIL:
-		return &fastbootErrors.ErrStatusFail{Data: statusData}
+		return &fastbooterrors.ErrStatusFail{Data: statusData}
 	}
 	return nil
 }
