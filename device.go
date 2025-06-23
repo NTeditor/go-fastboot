@@ -30,29 +30,6 @@ func (d *device) Reboot(ctx context.Context) error {
 	return nil
 }
 
-func (d *device) Flash(ctx context.Context, partition string, image []byte, infoHandler func([]byte)) error {
-	if err := d.protocol.Download(ctx, image); err != nil {
-		return err
-	}
-	if err := d.protocol.Send(ctx, []byte(fmt.Sprintf("flash:%s", partition))); err != nil {
-		return err
-	}
-	for {
-		if status, data, err := d.protocol.Read(ctx); err != nil {
-			return err
-		} else {
-			switch status {
-			case protocol.Status.OKAY:
-				return nil
-			case protocol.Status.FAIL:
-				return &fastbooterrors.ErrStatusFail{Data: data}
-			default:
-				infoHandler(data)
-			}
-		}
-	}
-}
-
 func (d *device) GetVarAll(ctx context.Context) ([]string, error) {
 	if err := d.protocol.Send(ctx, []byte("getvar:all")); err != nil {
 		return nil, err
