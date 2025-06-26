@@ -3,6 +3,7 @@ package protocol
 import (
 	"context"
 	"fmt"
+	"io"
 
 	"github.com/google/gousb"
 	"github.com/nteditor/go-fastboot/fastbooterrors"
@@ -81,6 +82,52 @@ func (p *Protocol) Read(ctx context.Context) (StatusType, []byte, error) {
 
 func (p *Protocol) Cleanup() {
 	p.cleanup()
+}
+
+func (p *Protocol) DownloadReader(ctx context.Context, reader io.Reader, size int64) error {
+	if p.IsClosed {
+		return fastbooterrors.ErrDeviceClose
+	}
+
+	err := p.Send(ctx, []byte(fmt.Sprintf("download:%08x", size)))
+	if err != nil {
+		return err
+	}
+
+	status, statusData, err := p.Read(ctx)
+	switch {
+	case err != nil:
+		return err
+	case status == Status.FAIL:
+		return &fastbooterrors.ErrStatusFail{Data: statusData}
+	}
+
+	const chunk_size = 0x40040
+	buf := make([]byte, 0x40040)
+	for {
+		chunk, err := reader.Read(buf)
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			return err
+		}
+
+		err = p.Send(ctx, buf[:chunk])
+		if err != nil {
+			return err
+		}
+	}
+
+	status, statusData, err = p.Read(ctx)
+	switch {
+	case err != nil:
+		return err
+	case status == Status.FAIL:
+		return &fastbooterrors.ErrStatusFail{Data: statusData}
+	}
+	return nil
 }
 
 func (p *Protocol) Download(ctx context.Context, image []byte) error {

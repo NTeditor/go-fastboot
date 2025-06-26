@@ -3,6 +3,7 @@ package fastboot
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/google/gousb"
 	"github.com/nteditor/go-fastboot/fastbooterrors"
@@ -28,6 +29,37 @@ func (d *device) Reboot(ctx context.Context) error {
 	}
 	d.Close()
 	return nil
+}
+
+func (d *device) FlashReader(ctx context.Context, partition string, image *os.File, infoHandler func([]byte)) error {
+	stat, err := image.Stat()
+	if err != nil {
+		return err
+	}
+
+	size := stat.Size()
+	if err := d.protocol.DownloadReader(ctx, image, size); err != nil {
+		return err
+	}
+
+	if err := d.protocol.Send(ctx, []byte(fmt.Sprintf("flash:%s", partition))); err != nil {
+		return err
+	}
+
+	for {
+		if status, data, err := d.protocol.Read(ctx); err != nil {
+			return err
+		} else {
+			switch status {
+			case protocol.Status.OKAY:
+				return nil
+			case protocol.Status.FAIL:
+				return &fastbooterrors.ErrStatusFail{Data: data}
+			default:
+				infoHandler(data)
+			}
+		}
+	}
 }
 
 func (d *device) Flash(ctx context.Context, partition string, image []byte, infoHandler func([]byte)) error {
