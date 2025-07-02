@@ -62,3 +62,5 @@ This project uses the following third-party libraries:
 
 - [gousb](https://github.com/google/gousb) by Google, licensed under the Apache License 2.0.
 
+## Note
+Development is temporarily suspended.
